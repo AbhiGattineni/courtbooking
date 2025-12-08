@@ -263,7 +263,7 @@ http://localhost:3000/venues/test-venue-id
 ```
 Shows venue details and available courts
 
-#### 3. **Time Slot Selection** - BookMyShow Style
+#### 3. **Time Slot Selection** - Timeslot Display
 ```
 http://localhost:3000/venues/test-venue/courts/test-court/book
 ```
@@ -287,42 +287,6 @@ Test all backend endpoints interactively:
 ```
 http://localhost:8000/docs
 ```
-
-### Adding Test Data
-
-Use the admin API endpoints at `/docs` to:
-
-1. **Create Organization**
-   ```http
-   POST /admin/organizations
-   {
-     "name": "ABC Cricket Arena",
-     "subdomain": "abc",
-     "contact_email": "admin@abc.com"
-   }
-   ```
-
-2. **Create Venue**
-   ```http
-   POST /admin/venues
-   {
-     "organization_id": "org-id",
-     "name": "Main Arena",
-     "city": "Mumbai",
-     "address_line1": "123 Main St"
-   }
-   ```
-
-3. **Create Court**
-   ```http
-   POST /admin/courts
-   {
-     "venue_id": "venue-id",
-     "name": "Court A",
-     "min_booking_minutes": 30,
-     "max_booking_minutes": 120
-   }
-   ```
 
 ---
 
@@ -421,82 +385,10 @@ npm start
 vercel --prod
 ```
 
-#### DNS Setup
-For subdomain routing:
-1. Add wildcard DNS: `*.yourdomain.com -> server-ip`
-2. Configure SSL certificates (Let's Encrypt)
-3. Set up reverse proxy (Nginx/Caddy)
-
----
-
-## 📝 Environment Variables Reference
-
-### Backend `.env`
-```bash
-DATABASE_TYPE=mysql
-DATABASE_HOST=localhost
-DATABASE_PORT=3306
-DATABASE_USER=root
-DATABASE_PASSWORD=password
-DATABASE_NAME=courtbooking
-SECRET_KEY=your-secret-key
-GOOGLE_CLIENT_ID=google-oauth-id
-GOOGLE_CLIENT_SECRET=google-oauth-secret
-RAZORPAY_KEY_ID=razorpay-key
-RAZORPAY_KEY_SECRET=razorpay-secret
-WEBHOOK_SECRET=razorpay-webhook-secret
-```
-
-### Frontend `.env.local`
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_DEV_ORG=abc
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=google-oauth-id
-NEXT_PUBLIC_RAZORPAY_KEY_ID=razorpay-key
-```
-
----
-
-## 🤝 Support
-
-### Common Issues
-
-**Database Connection Failed**
-```bash
-# Check MySQL is running
-mysql --version
-
-# Test connection
-mysql -u root -p
-```
-
-**Frontend Not Loading**
-```bash
-# Clear cache and rebuild
-rm -rf .next node_modules
-npm install
-npm run dev
-```
-
-**API CORS Errors**
-- Check `NEXT_PUBLIC_API_URL` in `.env.local`
-- Ensure backend is running on port 8000
-
 ---
 
 ## 📄 License
 
 This project is proprietary software for box cricket booking management.
-
----
-
-## 🎯 Next Steps
-
-1. ✅ Clone and setup (done if you're reading this!)
-2. 📝 Add test data via API docs
-3. 🧪 Test complete booking flow
-4. 🔐 Configure Google OAuth for real login
-5. 💳 Set up Razorpay for payments
-6. 🚀 Deploy to production
 
 ---
