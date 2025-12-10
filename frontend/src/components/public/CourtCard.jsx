@@ -1,69 +1,296 @@
-// src/components/public/CourtCard.jsx
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 import Card from '../common/Card';
+import ConfirmationModal from '../common/ConfirmationModal';
+import { FaClock, FaStar } from 'react-icons/fa';
+import { FaFutbol, FaBasketballBall, FaTrophy } from 'react-icons/fa';
+import { MdSportsCricket, MdSportsTennis } from 'react-icons/md';
+import { GiShuttlecock } from 'react-icons/gi';
 
-export default function CourtCard({ court }) {
+export default function CourtCard({ court, selectedDate }) {
+  const [slots, setSlots] = useState([]);
+  const [bookedSlots, setBookedSlots] = useState([]); // Array of blocked time strings
+  const [selectedSlots, setSelectedSlots] = useState([]); // Array of time strings
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [processing, setProcessing] = useState(false);
+
+  // Generate 30-min slots
+  useEffect(() => {
+    const generateTimeSlots = () => {
+      const times = [];
+      for (let hour = 6; hour < 22; hour++) {
+        const hourFormatted = hour > 12 ? hour - 12 : hour;
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+
+        // :00 slot
+        times.push({
+          id: `${hour}:00`,
+          display: `${hourFormatted}:00 ${ampm}`,
+          hour: hour,
+          minute: 0
+        });
+
+        // :30 slot
+        times.push({
+          id: `${hour}:30`,
+          display: `${hourFormatted}:30 ${ampm}`,
+          hour: hour,
+          minute: 30
+        });
+      }
+      setSlots(times);
+    };
+    generateTimeSlots();
+  }, []);
+
+  // Listen for bookings
+  useEffect(() => {
+    if (!court.id || !selectedDate) return;
+
+    const dateStr = selectedDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
+    const q = query(
+      collection(db, 'bookings'),
+      where('courtId', '==', court.id),
+      where('date', '==', dateStr)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const booked = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          // Filter out cancelled bookings
+          if (data.status === 'cancelled') return null;
+
+          // Check timeout for 'reserved' (5 min) and 'pending' (10 min)
+          if (data.createdAt) {
+            const created = data.createdAt.toDate();
+            const now = new Date();
+            const diffMins = (now - created) / 1000 / 60;
+
+            if (data.status === 'reserved' && diffMins > 5) return null;
+            if (data.status === 'pending' && diffMins > 10) return null;
+          }
+
+          return data.timeSlot; // This assumes timeSlot is a string or array.
+          // The updated logic should likely handle multiple slots per booking if stored as array
+          // But currently we store one slot per doc in the loop? 
+          // See handleBooking: it creates MULTIPLE docs. So this is correct.
+        })
+        .filter(Boolean);
+
+      setBookedSlots(booked);
+    });
+
+    return () => unsubscribe();
+  }, [court.id, selectedDate]);
+
+  const handleSlotClick = (slotId) => {
+    if (selectedSlots.includes(slotId)) {
+      setSelectedSlots(selectedSlots.filter(id => id !== slotId));
+    } else {
+      setSelectedSlots([...selectedSlots, slotId]);
+    }
+  };
+
+  const handleBooking = async () => {
+    if (!currentUser) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+
+    if (selectedSlots.length === 0) return;
+
+    setProcessing(true);
+    const dateStr = selectedDate.toLocaleDateString('en-CA');
+
+    try {
+      // Create "Reserved" bookings for each slot
+      const promises = selectedSlots.map(slot =>
+        addDoc(collection(db, 'bookings'), {
+          courtId: court.id,
+          courtName: court.name,
+          userId: currentUser.uid,
+          userName: currentUser.displayName || 'User',
+          date: dateStr,
+          timeSlot: slot,
+          status: 'reserved',
+          price: court.pricePerSlot,
+          createdAt: serverTimestamp()
+        })
+      );
+
+      await Promise.all(promises);
+      setShowSuccessModal(true);
+
+    } catch (error) {
+      console.error(error);
+      alert('Booking failed. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const getSportIcon = (type) => {
+    switch (type.toLowerCase()) {
+      case 'cricket': return <MdSportsCricket className="text-6xl text-blue-500 opacity-20" />;
+      case 'football': return <FaFutbol className="text-6xl text-green-500 opacity-20" />;
+      case 'badminton': return <GiShuttlecock className="text-6xl text-purple-500 opacity-20" />;
+      case 'tennis': return <MdSportsTennis className="text-6xl text-yellow-500 opacity-20" />;
+      case 'basketball': return <FaBasketballBall className="text-6xl text-orange-500 opacity-20" />;
+      default: return <FaTrophy className="text-6xl text-gray-400 opacity-20" />;
+    }
+  };
+
+  const totalPrice = selectedSlots.length * court.pricePerSlot;
+
   return (
-    <Card className="hover:shadow-xl transition-shadow duration-300 border border-gray-100">
-      {/* Court Image */}
-      <div className="h-48 bg-gray-100 relative overflow-hidden">
-        {court.images && court.images[0] ? (
+    <>
+      <Card className="hover:shadow-xl transition-shadow duration-300 border border-gray-100 flex flex-col md:flex-row overflow-hidden bg-white">
+        {/* Image Section - Real Image */}
+        <div className="md:w-1/3 bg-gray-200 relative min-h-[250px] md:min-h-full group overflow-hidden">
           <img
-            src={court.images[0]}
+            src={court.images && court.images.length > 0 ? court.images[0] : (court.image || `https://source.unsplash.com/800x600/?${court.sportType || 'sport'}`)}
             alt={court.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://images.unsplash.com/photo-1526676037777-05a232554f77?auto=format&fit=crop&q=80&w=800'; // Fallback
+            }}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl text-gray-400">
-            {court.sportType === 'cricket' ? '🏏' :
-              court.sportType === 'football' ? '⚽' :
-                court.sportType === 'tennis' ? '🎾' :
-                  court.sportType === 'badminton' ? '🏸' :
-                    court.sportType === 'basketball' ? '🏀' : '🏆'}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+            <span className="bg-blue-600 text-white px-3 py-1 text-xs font-bold rounded shadow uppercase tracking-wider">
+              {court.sportType}
+            </span>
           </div>
-        )}
-
-        {/* Sport Type Badge */}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-blue-600 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-          {court.sportType}
         </div>
-      </div>
 
-      {/* Court Info */}
-      <div className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{court.name}</h3>
-        <p className="text-gray-500 text-sm mb-4 flex items-center">
-          <span className="mr-1">📍</span> {court.location}
-        </p>
-
-        {/* Facilities */}
-        {court.facilities && court.facilities.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {court.facilities.slice(0, 3).map((facility, index) => (
-              <span
-                key={index}
-                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md font-medium"
-              >
-                {facility}
-              </span>
-            ))}
+        {/* Content Section */}
+        <div className="md:w-2/3 p-6 flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h3 className="text-2xl font-bold text-gray-900">{court.name}</h3>
+                <span className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">
+                  <FaStar className="text-sm" />
+                  {court.rating || 'New'}
+                </span>
+              </div>
+              <p className="text-gray-500 flex items-center gap-1 text-sm"><span className="text-lg">📍</span> {court.location}</p>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-bold text-blue-600">₹{court.pricePerSlot}</span>
+              <span className="text-xs text-gray-400 block font-medium">/ 30 MINS</span>
+            </div>
           </div>
-        )}
 
-        {/* Price and Button */}
-        <div className="flex items-center justify-between mt-4">
-          <div>
-            <span className="text-2xl font-bold text-blue-600">₹{court.pricePerSlot}</span>
-            <span className="text-gray-500 text-sm">/30 min</span>
+          <div className="mb-6 space-y-3">
+            {court.description && (
+              <p className="text-gray-600 text-sm line-clamp-2" title={court.description}>
+                {court.description}
+              </p>
+            )}
+
+            {court.facilities && (
+              <div className="flex flex-wrap gap-2">
+                {(Array.isArray(court.facilities) ? court.facilities : court.facilities.split(',')).map((fac, idx) => (
+                  <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium border border-gray-200">
+                    {fac.trim()}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-          <Link
-            to={`/court/${court.id}`}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm hover:shadow-md"
-          >
-            Book Now
-          </Link>
+
+          <div className="flex-1">
+            <p className="text-sm font-bold text-gray-700 mb-3 flex items-center uppercase tracking-wide">
+              <FaClock className="mr-2 text-blue-500" />
+              Available Slots ({selectedDate.toLocaleDateString()})
+            </p>
+
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-52 overflow-y-auto custom-scrollbar p-1">
+              {slots.map((slot) => {
+                const isBooked = bookedSlots.includes(slot.id);
+                const isSelected = selectedSlots.includes(slot.id);
+
+                return (
+                  <button
+                    key={slot.id}
+                    disabled={isBooked}
+                    onClick={() => handleSlotClick(slot.id)}
+                    className={`
+                      text-xs py-2 px-1 rounded border transition-all relative font-bold
+                      ${isBooked
+                        ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg transform scale-105 z-10'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:shadow-sm'
+                      }
+                    `}
+                  >
+                    {slot.display}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
+            <div>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Payable</p>
+              <p className="text-3xl font-extrabold text-gray-900">₹{totalPrice}</p>
+            </div>
+            <button
+              onClick={handleBooking}
+              disabled={selectedSlots.length === 0 || processing}
+              className={`
+                px-10 py-4 rounded-xl font-bold shadow-xl transition-all transform flex items-center gap-2
+                ${selectedSlots.length > 0 && !processing
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-1 hover:shadow-2xl'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              {processing ? 'Processing...' : 'Proceed to Pay'}
+            </button>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          const bookingData = {
+            court: court,
+            slots: selectedSlots,
+            date: selectedDate.toLocaleDateString('en-CA'),
+            totalAmount: totalPrice
+          };
+          setSelectedSlots([]);
+          navigate('/payment', { state: bookingData });
+        }}
+        onConfirm={() => {
+          setShowSuccessModal(false);
+          const bookingData = {
+            court: court,
+            slots: selectedSlots,
+            date: selectedDate.toLocaleDateString('en-CA'),
+            totalAmount: totalPrice
+          };
+          setSelectedSlots([]);
+          navigate('/payment', { state: bookingData });
+        }}
+        createBookingMode={true}
+        title="Slots Reserved!"
+        message={`We have temporarily reserved ${selectedSlots.length} slot(s) for you (${selectedSlots.join(', ')}). Proceed to payment to confirm.`}
+      />
+
+    </>
   );
 }

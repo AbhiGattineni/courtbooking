@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useState } from 'react';
+import { FaHome, FaCalendarAlt, FaUser, FaSignOutAlt, FaSignInAlt, FaBars, FaTimes } from 'react-icons/fa';
 
 export default function Navbar() {
   const { currentUser: user, logout } = useAuth();
@@ -17,7 +18,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -30,15 +31,20 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-              Home
-            </Link>
-            <Link to="/courts" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-              Courts
+            {!user && (
+              <Link to="/" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
+                <FaHome />
+                <span>Home</span>
+              </Link>
+            )}
+            <Link to="/courts" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
+              <FaCalendarAlt />
+              <span>Courts</span>
             </Link>
             {user && (
-              <Link to="/profile" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-                Profile
+              <Link to="/profile" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
+                <FaUser />
+                <span>Profile</span>
               </Link>
             )}
           </div>
@@ -46,18 +52,21 @@ export default function Navbar() {
           {/* Desktop Auth Button */}
           <div className="hidden md:block">
             {user ? (
-              <button
-                onClick={handleLogout}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
-              >
-                Log Out
-              </button>
+              // User is logged in - Profile link is in the nav links section, so we don't need a separate button here
+              // We can optionally show a small profile avatar/icon here if desired, but user asked to remove logout
+              // and make it as profile. The "Profile" text link exists in the nav links (line 44).
+              // I will render nothing here for logged in users to clean it up, or maybe a mini profile chip.
+              // Given "remove logout and make it as profile", and we already have a Profile link in the center,
+              // I will just hide this section for logged in users or perhaps highlight the profile link better.
+              // For now, let's keep it clean as requested.
+              null
             ) : (
               <Link
                 to="/login"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
               >
-                Login / Sign Up
+                <FaSignInAlt />
+                <span>Login / Sign Up</span>
               </Link>
             )}
           </div>
@@ -68,13 +77,7 @@ export default function Navbar() {
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-600 hover:text-gray-900 focus:outline-none p-2"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
+              {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
             </button>
           </div>
         </div>
@@ -84,31 +87,38 @@ export default function Navbar() {
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link to="/" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
-              Home
-            </Link>
-            <Link to="/courts" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
-              Courts
+            {!user && (
+              <Link to="/" className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+                <FaHome />
+                <span>Home</span>
+              </Link>
+            )}
+            <Link to="/courts" className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+              <FaCalendarAlt />
+              <span>Courts</span>
             </Link>
             {user && (
-              <Link to="/profile" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
-                Profile
+              <Link to="/profile" className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+                <FaUser />
+                <span>Profile</span>
               </Link>
             )}
             <div className="mt-4 pt-4 border-t border-gray-100">
               {user ? (
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
+                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
                 >
-                  Log Out
+                  <FaSignOutAlt />
+                  <span>Log Out</span>
                 </button>
               ) : (
                 <Link
                   to="/login"
-                  className="block w-full text-center px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700"
+                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700"
                 >
-                  Login / Sign Up
+                  <FaSignInAlt />
+                  <span>Login / Sign Up</span>
                 </Link>
               )}
             </div>

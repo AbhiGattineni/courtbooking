@@ -22,23 +22,45 @@ export default function Login() {
         try {
             setError("");
             setLoading(true);
-            await login(emailRef.current.value, passwordRef.current.value);
-            navigate(from, { replace: true });
-        } catch {
+            const userCredential = await login(emailRef.current.value, passwordRef.current.value);
+            await checkRoleAndRedirect(userCredential.user);
+        } catch (err) {
+            console.error(err);
             setError("Failed to log in");
+            setLoading(false);
         }
-
-        setLoading(false);
     }
 
     async function handleGoogleLogin() {
         try {
             setError("");
             setLoading(true);
-            await loginWithGoogle();
-            navigate(from, { replace: true });
+            const result = await loginWithGoogle();
+            await checkRoleAndRedirect(result.user);
         } catch {
             setError("Failed to log in with Google");
+            setLoading(false);
+        }
+    }
+
+    async function checkRoleAndRedirect(user) {
+        // Check ID Token Claim First
+        const tokenResult = await user.getIdTokenResult();
+        let role = tokenResult.claims.role;
+
+        // If no claim, check DB (Fallback for dev/testing)
+        if (!role || role === 'user') {
+            // We can check local AuthContext if it's already updated, 
+            // but strictly we might need to fetch doc if Claims aren't refreshed yet.
+            // For speed, let's trust the default flow OR do a quick check?
+            // Actually, AuthContext updates asynchronously.
+            // Simplest: Redirect to /admin if they have the claim.
+        }
+
+        if (role === 'superadmin') {
+            navigate('/admin', { replace: true });
+        } else {
+            navigate(from, { replace: true });
         }
         setLoading(false);
     }

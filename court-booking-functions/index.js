@@ -1,32 +1,59 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
+admin.initializeApp();
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+// Set user role (Callable Function)
+// Usage: const setRole = httpsCallable(functions, 'setRole'); setRole({ uid: '...', role: 'manager' })
+exports.setRole = functions.https.onCall(async (data, context) => {
+    // Check if request is made by an authenticated user
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'The function must be called while authenticated.'
+        );
+    }
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+    // Bypass security check for Test Mode as requested.
+    // In production, uncomment the following:
+    /*
+    const callerUid = context.auth.uid;
+    const callerUser = await admin.auth().getUser(callerUid);
+    const isSuperAdmin = callerUser.customClaims && callerUser.customClaims.role === 'superadmin';
+    
+    if (!isSuperAdmin) {
+      throw new functions.https.HttpsError('permission-denied', 'Only Superadmins can change roles.');
+    }
+    */
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+    const { uid, role } = data;
+
+    if (!uid || !role) {
+        throw new functions.https.HttpsError('invalid-argument', 'UID and Role are required.');
+    }
+
+    try {
+        // Set custom user claims on this newly created user.
+        await admin.auth().setCustomUserClaims(uid, { role });
+
+        // Update Firestore as well for easier frontend querying
+        await admin.firestore().collection("users").doc(uid).set({ role }, { merge: true });
+
+        return { message: `Success! User ${uid} has been made a ${role}.` };
+    } catch (error) {
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+// Delete user (Callable)
+exports.deleteUser = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('failed-precondition', 'Auth required.');
+
+    try {
+        await admin.auth().deleteUser(data.uid);
+        await admin.firestore().collection("users").doc(data.uid).delete();
+        return { success: true };
+    } catch (error) {
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
