@@ -1,7 +1,13 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useState } from 'react';
-import { FaHome, FaCalendarAlt, FaUser, FaSignOutAlt, FaSignInAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useState } from "react";
+import {
+  FaUser,
+  FaSignOutAlt,
+  FaSignInAlt,
+  FaBars,
+  FaTimes,
+} from "react-icons/fa";
 
 export default function Navbar() {
   const { currentUser: user, logout } = useAuth();
@@ -11,7 +17,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate("/login");
     } catch {
       console.error("Failed to log out");
     }
@@ -26,23 +32,18 @@ export default function Navbar() {
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-xl">CB</span>
             </div>
-            <span className="text-gray-900 text-xl font-bold">Court Booking</span>
+            <span className="text-gray-900 text-xl font-bold">
+              Court Booking
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {!user && (
-              <Link to="/" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
-                <FaHome />
-                <span>Home</span>
-              </Link>
-            )}
-            <Link to="/courts" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
-              <FaCalendarAlt />
-              <span>Courts</span>
-            </Link>
             {user && (
-              <Link to="/profile" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors font-medium"
+              >
                 <FaUser />
                 <span>Profile</span>
               </Link>
@@ -52,14 +53,13 @@ export default function Navbar() {
           {/* Desktop Auth Button */}
           <div className="hidden md:block">
             {user ? (
-              // User is logged in - Profile link is in the nav links section, so we don't need a separate button here
-              // We can optionally show a small profile avatar/icon here if desired, but user asked to remove logout
-              // and make it as profile. The "Profile" text link exists in the nav links (line 44).
-              // I will render nothing here for logged in users to clean it up, or maybe a mini profile chip.
-              // Given "remove logout and make it as profile", and we already have a Profile link in the center,
-              // I will just hide this section for logged in users or perhaps highlight the profile link better.
-              // For now, let's keep it clean as requested.
-              null
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-6 py-2 rounded-lg transition-colors font-medium"
+              >
+                <FaSignOutAlt />
+                <span>Log Out</span>
+              </button>
             ) : (
               <Link
                 to="/login"
@@ -87,18 +87,11 @@ export default function Navbar() {
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {!user && (
-              <Link to="/" className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
-                <FaHome />
-                <span>Home</span>
-              </Link>
-            )}
-            <Link to="/courts" className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
-              <FaCalendarAlt />
-              <span>Courts</span>
-            </Link>
             {user && (
-              <Link to="/profile" className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+              >
                 <FaUser />
                 <span>Profile</span>
               </Link>

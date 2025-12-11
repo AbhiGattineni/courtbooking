@@ -1,9 +1,9 @@
 // src/pages/CourtsPage.jsx
-import CourtsList from '../components/public/CourtsList';
+import CourtsList from "../components/public/CourtsList";
 
 export default function CourtsPage() {
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-50">
       <CourtsList />
     </div>
   );
