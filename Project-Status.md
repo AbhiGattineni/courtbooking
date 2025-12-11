@@ -1,54 +1,38 @@
-# Project Status & Features Overview
+# Project Status
 
-Current Status: **Phase 2 Complete / Phase 3 Started**
-Last Updated: 2025-12-10
+## ✅ Completed Features
+- **Project Structure**: React frontend + Firebase backend (Firestore, Auth).
+- **Authentication**: Login/Signup with Email & Google.
+- **Access Control**: Role-based access (User vs Superadmin).
+- **Superadmin Dashboard**:
+  - Statistics Overview (Real-time).
+  - User Management (Promote/Demote roles).
+  - Court Management (Add, Delete, Toggle Visibility).
+  - Booking Management (View active bookings).
+- **Public Core**:
+  - **HomePage**: Smart redirection (skips hero if logged in).
+  - **Courts List**: Real-time list with dynamic Sport Filter.
+  - **Court Card**:
+    - 30-Minute Slots Booking Engine.
+    - Dynamic Blocking logic (Reserved/Pending timeouts).
+    - Multi-select slots + Price calc.
+  - **Profile**: Sidebar layout with Bookings History and Profile Edit.
+- **UI/UX**:
+  - **DateStrip**: Custom scrolling date picker with gradients.
+  - **Modals**: Reusable `ConfirmationModal` replacing browser alerts.
+  - **Responsive**: Mobile-friendly Navbar and Grids.
+- **Admin Details**:
+  - **Court Details View**: View specific court's schedule and slot status.
+  - **Booking Inspection**: See who booked which slot.
 
-## 🚀 Implemented Features
+## 🚧 In Progress / Planned
+- **Payment Gateway**: Integration (Placeholder page created).
+- **Notifications**: Email/SMS on booking.
+- **Automated Expire**: Cloud Functions to auto-cancel reserved slots (Logic exists in frontend check, needs backend enforcement).
+- **Images**: Real image upload for courts (currently placeholder icons).
 
-### 1. Authentication & Security
-Comprehensive user management system using Firebase Auth.
--   **Sign Up**: Users can create accounts using Email/Password.
-    -   *Logic*: Automatically creates a corresponding user document in Firestore with role `user`.
--   **Login**: Secure login for existing users.
-    -   *Logic*: Includes "Login-on-Demand" - if a user tries to book without logging in, they are redirected to login and then seamlessly returned to their booking.
--   **Google Sign-In**: One-click login/signup using Google credentials.
--   **Forgot Password**: Automated email-based password reset flow.
--   **Protected Routes**: Security wrapper that prevents unauthorized access to private pages (like Profile, Booking).
--   **Environment Security**: All API keys secured in `.env` file (not hardcoded).
+## 🐛 Known Issues / Notes
+- **Admin**: Initial superadmin creation requires manual Firestore/Claim setup.
+- **Validation**: Booking validation is primarily client-side; needs Security Rules hardening.
 
-### 2. Navigation & User Flow
-A "BookMyShow" inspired seamless experience.
--   **Public Access**: Homepage and Courts List are open to everyone.
--   **Responsive Navbar**:
-    -   *Desktop*: Full navigation links.
-    -   *Mobile**: Hamburger menu optimized for smaller screens (verified on 375px width).
-    -   *Dynamic*: Shows "Login" or "Profile/Logout" based on auth state.
--   **Smart Redirection**:
-    -   Clicking "Book Now" -> Checks Auth -> Directs to Booking (if logged in) OR Login (if logged out).
-    -   After Login/Signup -> Auto-redirects back to the intended destination.
-
-### 3. User Interface (UI)
-Modern, responsive, and accessible design.
--   **Theme**: Clean **Light Mode** aesthetic using Tailwind CSS.
--   **Components**:
-    -   `Navbar`: Sticky, responsive navigation.
-    -   `CourtCard`: Displays court image, sport type badge, price, and "Book Now" action.
-    -   `Card`, `Button`: Reusable design system components.
--   **Feedback**: Loading spinners and error messages (toast/inline) for better UX.
-
-### 4. Core Pages
--   **Home (`/`)**: Landing page with Hero section.
--   **Courts (`/courts`)**: Browse available sports venues.
--   **Profile (`/profile`)**:
-    -   Displays user details (Name, Email, Phone, Role).
-    -   Placeholder for "Booking History".
--   **Booking (`/court/:id`)**:
-    -   *New*: Dedicated page for confirming bookings (Protected Route).
-    -   Currently a placeholder awaiting payment integration.
-
-### 5. Backend Services (Firebase)
--   **Firebase Auth**: Handles identity management.
--   **Cloud Firestore**: NoSQL database storing:
-    -   `users`: User profiles and roles.
-    -   `courts`: Venue details (Price, Location, Sport Type).
--   **Cloud Functions**: Structure ready for server-side logic (emails, payments).
+Last Updated: December 12, 2025

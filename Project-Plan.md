@@ -268,7 +268,6 @@ Redirect to payment → Update to 'pending' (10-min total)
 8a. Payment Success → Update to 'confirmed' (permanent block)
 8b. Payment Failed/Timeout → Update to 'cancelled' (release slot)
 
-text
 
 ### Preventing Double-Booking
 

@@ -102,3 +102,15 @@ firebase login
 To verify functions locally (optional):
 
 firebase emulators:start --only functions
+
+How Slot Reservation Works
+You asked about "slots preserve / reserved". Here is the logic flow:
+
+Selection (Local): When a user clicks a time slot (e.g., 6:00 PM), it is just highlighted locally on their screen. No database change yet.
+Reservation (Database): When the user clicks "Proceed to Pay":
+The app immediately creates a booking record in the database with status: reserved.
+Why? This prevents other users from booking the same slot while the first user is paying.
+Expiry (Blocking):
+Other users will see this slot as "Booked" (Greyed out) immediately because the app listens to all bookings for that day.
+Timeout: We implemented a check (in CourtCard.jsx) where if a reserved booking is older than 5 minutes and hasn't turned into confirmed (paid), it is ignored/released independently. This acts as a "hold" timer.
+Confirmation: Once payment succeeds (simulated for now), the status should change to confirmed.

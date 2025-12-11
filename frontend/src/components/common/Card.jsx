@@ -1,7 +1,6 @@
-// src/components/common/Card.jsx
-export default function Card({ children, className = '' }) {
+export default function Card({ children, className = '', ...props }) {
   return (
-    <div className={`bg-white rounded-xl shadow-md overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-xl shadow-md overflow-hidden ${className}`} {...props}>
       {children}
     </div>
   );
