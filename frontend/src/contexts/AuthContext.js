@@ -1,15 +1,15 @@
 import React, { useContext, useState, useEffect } from "react";
-import { auth, googleProvider } from "../services/firebase";
+import { auth, db } from "../services/firebase"; // REMOVED googleProvider
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  GoogleAuthProvider, // ADD THIS
   signOut,
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { db } from "../services/firebase";
 import {
   doc,
   setDoc,
@@ -37,12 +37,10 @@ export function AuthProvider({ children }) {
     );
     const user = userCredential.user;
 
-    // Update profile
     await updateProfile(user, {
       displayName: fullName,
     });
 
-    // Create user document in Firestore
     await setDoc(doc(db, "users", user.uid), {
       userId: user.uid,
       email: user.email,
@@ -61,15 +59,15 @@ export function AuthProvider({ children }) {
   }
 
   async function loginWithGoogle() {
+    // Create provider locally - THIS IS THE FIX
+    const googleProvider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
 
-    // Check if user document exists
     const userDocRef = doc(db, "users", user.uid);
     const userDoc = await getDoc(userDocRef);
 
     if (!userDoc.exists()) {
-      // Create user document for new Google sign-ins
       await setDoc(userDocRef, {
         userId: user.uid,
         email: user.email,
@@ -91,19 +89,16 @@ export function AuthProvider({ children }) {
     return sendPasswordResetEmail(auth, email);
   }
 
-  // Force refresh of token to get latest claims
   async function refreshUser() {
     if (auth.currentUser) {
       await auth.currentUser.getIdToken(true);
       const tokenResult = await auth.currentUser.getIdTokenResult();
 
-      // Check Firestore for role (primary source for development)
       let finalRole = tokenResult.claims.role || "user";
 
       try {
         const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
         if (userDoc.exists() && userDoc.data().role) {
-          // Firestore role takes precedence (allows manual DB edits to work)
           finalRole = userDoc.data().role;
         }
       } catch (error) {
@@ -122,15 +117,12 @@ export function AuthProvider({ children }) {
       if (user) {
         setCurrentUser(user);
 
-        // Get custom claims
         const tokenResult = await user.getIdTokenResult();
         let initialRole = tokenResult.claims.role || "user";
 
-        // Check Firestore for role (primary source for development)
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists() && userDoc.data().role) {
-            // Firestore role takes precedence
             initialRole = userDoc.data().role;
           }
         } catch (err) {
@@ -140,8 +132,6 @@ export function AuthProvider({ children }) {
         setUserRole(initialRole);
         setLoading(false);
 
-        // Set up real-time listener for user document changes
-        // This ensures role updates in Firestore are reflected immediately
         unsubscribeFirestore = onSnapshot(
           doc(db, "users", user.uid),
           (userDoc) => {
@@ -161,7 +151,6 @@ export function AuthProvider({ children }) {
         setUserRole(null);
         setLoading(false);
 
-        // Clean up Firestore listener if user logs out
         if (unsubscribeFirestore) {
           unsubscribeFirestore();
           unsubscribeFirestore = null;

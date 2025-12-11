@@ -20,9 +20,9 @@ import { GiShuttlecock } from "react-icons/gi";
 
 export default function CourtCard({ court, selectedDate }) {
   const [slots, setSlots] = useState([]);
-  const [bookedSlots, setBookedSlots] = useState([]); // Array of blocked time strings
-  const [blockedSlots, setBlockedSlots] = useState([]); // Array of admin-blocked time strings
-  const [selectedSlots, setSelectedSlots] = useState([]); // Array of time strings
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
+  const [selectedSlots, setSelectedSlots] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -37,7 +37,6 @@ export default function CourtCard({ court, selectedDate }) {
         const hourFormatted = hour > 12 ? hour - 12 : hour;
         const ampm = hour >= 12 ? "PM" : "AM";
 
-        // :00 slot
         times.push({
           id: `${hour}:00`,
           display: `${hourFormatted}:00 ${ampm}`,
@@ -45,7 +44,6 @@ export default function CourtCard({ court, selectedDate }) {
           minute: 0,
         });
 
-        // :30 slot
         times.push({
           id: `${hour}:30`,
           display: `${hourFormatted}:30 ${ampm}`,
@@ -69,16 +67,11 @@ export default function CourtCard({ court, selectedDate }) {
         const adminBlocked = (schedule?.blockedSlots || [])
           .filter((blocked) => blocked.date === dateStr)
           .flatMap((blocked) => {
-            // Generate all 30-min slots within the blocked time range
             const slots = [];
             const startMinutes = timeToMinutes(blocked.startTime);
             const endMinutes = timeToMinutes(blocked.endTime);
 
-            for (
-              let minutes = startMinutes;
-              minutes < endMinutes;
-              minutes += 30
-            ) {
+            for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
               const hours = Math.floor(minutes / 60);
               const mins = minutes % 60;
               slots.push(`${hours}:${mins.toString().padStart(2, "0")}`);
@@ -99,7 +92,7 @@ export default function CourtCard({ court, selectedDate }) {
   useEffect(() => {
     if (!court.id || !selectedDate) return;
 
-    const dateStr = selectedDate.toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const dateStr = selectedDate.toLocaleDateString("en-CA");
     const q = query(
       collection(db, "bookings"),
       where("courtId", "==", court.id),
@@ -110,10 +103,8 @@ export default function CourtCard({ court, selectedDate }) {
       const booked = snapshot.docs
         .map((doc) => {
           const data = doc.data();
-          // Filter out cancelled bookings
           if (data.status === "cancelled") return null;
 
-          // Check timeout for 'reserved' (5 min) and 'pending' (10 min)
           if (data.createdAt) {
             const created = data.createdAt.toDate();
             const now = new Date();
@@ -123,10 +114,7 @@ export default function CourtCard({ court, selectedDate }) {
             if (data.status === "pending" && diffMins > 10) return null;
           }
 
-          return data.timeSlot; // This assumes timeSlot is a string or array.
-          // The updated logic should likely handle multiple slots per booking if stored as array
-          // But currently we store one slot per doc in the loop?
-          // See handleBooking: it creates MULTIPLE docs. So this is correct.
+          return data.timeSlot;
         })
         .filter(Boolean);
 
@@ -136,7 +124,6 @@ export default function CourtCard({ court, selectedDate }) {
     return () => unsubscribe();
   }, [court.id, selectedDate]);
 
-  // Helper function to convert time to minutes
   const timeToMinutes = (time) => {
     const [hours, minutes] = time.split(":").map(Number);
     return hours * 60 + minutes;
@@ -150,7 +137,8 @@ export default function CourtCard({ court, selectedDate }) {
     }
   };
 
-  const handleBooking = async () => {
+  // ✅ FIXED: Only show modal, don't create bookings yet
+  const handleBooking = () => {
     if (!currentUser) {
       navigate("/login", { state: { from: location } });
       return;
@@ -158,6 +146,12 @@ export default function CourtCard({ court, selectedDate }) {
 
     if (selectedSlots.length === 0) return;
 
+    // Just show the confirmation modal - NO DB WRITES YET
+    setShowSuccessModal(true);
+  };
+
+  // ✅ NEW: Create bookings when modal is confirmed
+  const handleConfirmBooking = async () => {
     setProcessing(true);
     const dateStr = selectedDate.toLocaleDateString("en-CA");
 
@@ -178,10 +172,22 @@ export default function CourtCard({ court, selectedDate }) {
       );
 
       await Promise.all(promises);
-      setShowSuccessModal(true);
+
+      // Navigate to payment with booking data
+      const bookingData = {
+        court: court,
+        slots: selectedSlots,
+        date: dateStr,
+        totalAmount: totalPrice,
+      };
+
+      setShowSuccessModal(false);
+      setSelectedSlots([]);
+      navigate("/payment", { state: bookingData });
     } catch (error) {
       console.error(error);
       alert("Booking failed. Please try again.");
+      setShowSuccessModal(false);
     } finally {
       setProcessing(false);
     }
@@ -190,23 +196,15 @@ export default function CourtCard({ court, selectedDate }) {
   const getSportIcon = (type) => {
     switch (type.toLowerCase()) {
       case "cricket":
-        return (
-          <MdSportsCricket className="text-6xl text-blue-500 opacity-20" />
-        );
+        return <MdSportsCricket className="text-6xl text-blue-500 opacity-20" />;
       case "football":
         return <FaFutbol className="text-6xl text-green-500 opacity-20" />;
       case "badminton":
-        return (
-          <GiShuttlecock className="text-6xl text-purple-500 opacity-20" />
-        );
+        return <GiShuttlecock className="text-6xl text-purple-500 opacity-20" />;
       case "tennis":
-        return (
-          <MdSportsTennis className="text-6xl text-yellow-500 opacity-20" />
-        );
+        return <MdSportsTennis className="text-6xl text-yellow-500 opacity-20" />;
       case "basketball":
-        return (
-          <FaBasketballBall className="text-6xl text-orange-500 opacity-20" />
-        );
+        return <FaBasketballBall className="text-6xl text-orange-500 opacity-20" />;
       default:
         return <FaTrophy className="text-6xl text-gray-400 opacity-20" />;
     }
@@ -217,23 +215,21 @@ export default function CourtCard({ court, selectedDate }) {
   return (
     <>
       <Card className="hover:shadow-xl transition-shadow duration-300 border border-gray-100 flex flex-col md:flex-row overflow-hidden bg-white">
-        {/* Image Section - Real Image */}
+        {/* Image Section */}
         <div className="md:w-1/3 bg-gray-200 relative min-h-[250px] md:min-h-full group overflow-hidden">
           <img
             src={
               court.images && court.images.length > 0
                 ? court.images[0]
                 : court.image ||
-                  `https://source.unsplash.com/800x600/?${
-                    court.sportType || "sport"
-                  }`
+                  `https://source.unsplash.com/800x600/?${court.sportType || "sport"}`
             }
             alt={court.name}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             onError={(e) => {
               e.target.onerror = null;
               e.target.src =
-                "https://images.unsplash.com/photo-1526676037777-05a232554f77?auto=format&fit=crop&q=80&w=800"; // Fallback
+                "https://images.unsplash.com/photo-1526676037777-05a232554f77?auto=format&fit=crop&q=80&w=800";
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
@@ -248,9 +244,7 @@ export default function CourtCard({ court, selectedDate }) {
           <div className="flex justify-between items-start mb-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {court.name}
-                </h3>
+                <h3 className="text-2xl font-bold text-gray-900">{court.name}</h3>
                 <span className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">
                   <FaStar className="text-sm" />
                   {court.rating || "New"}
@@ -264,18 +258,13 @@ export default function CourtCard({ court, selectedDate }) {
               <span className="text-2xl font-bold text-blue-600">
                 ₹{court.pricePerSlot}
               </span>
-              <span className="text-xs text-gray-400 block font-medium">
-                / 30 MINS
-              </span>
+              <span className="text-xs text-gray-400 block font-medium">/ 30 MINS</span>
             </div>
           </div>
 
           <div className="mb-6 space-y-3">
             {court.description && (
-              <p
-                className="text-gray-600 text-sm line-clamp-2"
-                title={court.description}
-              >
+              <p className="text-gray-600 text-sm line-clamp-2" title={court.description}>
                 {court.description}
               </p>
             )}
@@ -328,11 +317,7 @@ export default function CourtCard({ court, selectedDate }) {
                       }
                     `}
                     title={
-                      isBlocked
-                        ? "Blocked by admin"
-                        : isBooked
-                        ? "Already booked"
-                        : ""
+                      isBlocked ? "Blocked by admin" : isBooked ? "Already booked" : ""
                     }
                   >
                     {slot.display}
@@ -347,9 +332,7 @@ export default function CourtCard({ court, selectedDate }) {
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">
                 Total Payable
               </p>
-              <p className="text-3xl font-extrabold text-gray-900">
-                ₹{totalPrice}
-              </p>
+              <p className="text-3xl font-extrabold text-gray-900">₹{totalPrice}</p>
             </div>
             <button
               onClick={handleBooking}
@@ -369,37 +352,18 @@ export default function CourtCard({ court, selectedDate }) {
         </div>
       </Card>
 
+      {/* ✅ FIXED: Proper handlers */}
       <ConfirmationModal
         isOpen={showSuccessModal}
         onClose={() => {
+          // Cancel: Just close and clear selection, NO navigation
           setShowSuccessModal(false);
-          const bookingData = {
-            court: court,
-            slots: selectedSlots,
-            date: selectedDate.toLocaleDateString("en-CA"),
-            totalAmount: totalPrice,
-          };
           setSelectedSlots([]);
-          navigate("/payment", { state: bookingData });
         }}
-        onConfirm={() => {
-          setShowSuccessModal(false);
-          const bookingData = {
-            court: court,
-            slots: selectedSlots,
-            date: selectedDate.toLocaleDateString("en-CA"),
-            totalAmount: totalPrice,
-          };
-          setSelectedSlots([]);
-          navigate("/payment", { state: bookingData });
-        }}
+        onConfirm={handleConfirmBooking}
         createBookingMode={true}
-        title="Slots Reserved!"
-        message={`We have temporarily reserved ${
-          selectedSlots.length
-        } slot(s) for you (${selectedSlots.join(
-          ", "
-        )}). Proceed to payment to confirm.`}
+        title="Confirm Booking"
+        message={`Reserve ${selectedSlots.length} slot(s) for ${selectedDate.toLocaleDateString()}? (${selectedSlots.join(", ")})`}
       />
     </>
   );
