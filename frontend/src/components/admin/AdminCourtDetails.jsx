@@ -644,6 +644,7 @@ export default function AdminCourtDetails({ court, onClose }) {
         onConfirm={handleUnblockSlot}
         title="Unblock Time Slot?"
         message={`Are you sure you want to unblock ${deleteBlockModal.slot?.date} from ${deleteBlockModal.slot?.startTime} to ${deleteBlockModal.slot?.endTime}?`}
+        confirmText="Unblock"
       />
     </div>
   );

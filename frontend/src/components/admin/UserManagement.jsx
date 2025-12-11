@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db, functions } from '../../services/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { collection, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+// import { httpsCallable } from 'firebase/functions'; // Unused for now
 import Card from '../common/Card';
 import Button from '../common/Button';
 import ConfirmationModal from '../common/ConfirmationModal';
+import Pagination from '../common/Pagination';
 
 export default function UserManagement() {
     const [users, setUsers] = useState([]);
@@ -39,8 +40,12 @@ export default function UserManagement() {
         setMessage({ type: 'info', text: 'Updating role...' });
 
         try {
-            const setRoleFunction = httpsCallable(functions, 'setRole');
-            await setRoleFunction({ uid: userId, role: role });
+            // DIRECT UPDATE to Firestore (Bypassing Cloud Function for local testing/simplicity)
+            // Ideally, we should also update Auth Custom Claims via Cloud Function in production.
+            await updateDoc(doc(db, 'users', userId), {
+                role: role
+            });
+
             setMessage({ type: 'success', text: `User role updated to ${role}` });
         } catch (error) {
             console.error("Error changing role: ", error);
@@ -52,11 +57,17 @@ export default function UserManagement() {
         }
     };
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
     // Filter
     const filteredUsers = users.filter(user =>
         (user.email?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
         <div className="space-y-6">
@@ -86,7 +97,7 @@ export default function UserManagement() {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredUsers.map(user => (
+                        {paginatedUsers.map(user => (
                             <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50">
                                 <td className="p-4">
                                     <p className="font-bold text-gray-900">{user.displayName || 'No Name'}</p>
@@ -112,12 +123,21 @@ export default function UserManagement() {
                 {filteredUsers.length === 0 && <p className="p-8 text-center text-gray-500">No users found.</p>}
             </div>
 
+            <Pagination
+                currentPage={currentPage}
+                totalItems={filteredUsers.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+            />
+
             <ConfirmationModal
                 isOpen={confirmModal.isOpen}
                 onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
                 onConfirm={confirmChangeRole}
                 title="Change User Role?"
                 message={`Are you sure you want to change this user's role to ${confirmModal.role}?`}
+                confirmText="Update Role"
+                isDanger={false}
             />
         </div>
     );
